@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>機櫃配置模擬器 Pro</title>
+    
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; }
+        
+        /* === 背景美化設定 === */
+        .bg-tech-pattern {
+            background-color: #0f172a; 
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            background-attachment: fixed; /* 背景固定 */
+        }
+
+        .bg-blueprint-pattern {
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(#e2e8f0 1px, transparent 1px), 
+                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+            position: relative;
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 滾動條美化 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            .print-border { border-color: #333 !important; }
+            
+            body { 
+                background-color: white !important; 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                margin: 0;
+                padding: 0;
+            }
+            
+            #print-container {
+                width: 100%;
+                max-width: 210mm;
+                margin: 0 auto;
+                background-color: white;
+                page-break-inside: avoid;
+            }
+
+            #rack-container {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div id="root" class="min-h-screen"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        // 圖示組件
+        const Icons = {
+            Server: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>,
+            Shield: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>,
+            Activity: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+            Wifi: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
+            Box: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+            Trash2: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+            Printer: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>,
+            Camera: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
+            RotateCcw: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>,
+            Layers: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>,
+            X: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 12"/></svg>,
+            Logo: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>,
+            HardDrive: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>,
+            Grid: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>,
+            AlignJustify: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>,
+            Minus: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            GripHorizontal: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="1"/><circle cx="19" cy="9" r="1"/><circle cx="5" cy="9" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="19" cy="15" r="1"/><circle cx="5" cy="15" r="1"/></svg>,
+            Monitor: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
+        };
+
+        // 設備定義
+        const DEVICE_TYPES = [
+            // === 1. 標準設備 ===
+            { id: 'server-1u', category: 'standard', name: '1U 伺服器', uHeight: 1, color: 'bg-slate-700', borderColor: 'border-slate-500', icon: Icons.Server, desc: '標準運算節點' },
+            { id: 'server-2u', category: 'standard', name: '2U 伺服器', uHeight: 2, color: 'bg-slate-800', borderColor: 'border-blue-500', icon: Icons.Server, desc: '高效能伺服器' },
+            { id: 'kvm', category: 'standard', name: '1U LCD KVM', uHeight: 1, color: 'bg-zinc-700', borderColor: 'border-zinc-500', icon: Icons.Monitor, desc: '折疊式螢幕鍵盤組' },
+            { id: 'firewall', category: 'standard', name: '1U 防火牆/路由', uHeight: 1, color: 'bg-red-900', borderColor: 'border-red-500', icon: Icons.Shield, desc: '資安防護設備' },
+            { id: 'switch', category: 'standard', name: '1U 交換器', uHeight: 1, color: 'bg-cyan-900', borderColor: 'border-cyan-500', icon: Icons.Activity, desc: '網路交換器' },
+            
+            // === 2. 大型主機/UPS (半寬設備) ===
+            // 這裡的 color 加上 /85 代表透明度，讓層板可以透出來
+            { id: 'ups-1u', category: 'heavy', name: '1U UPS 不斷電', uHeight: 1, color: 'bg-zinc-800', borderColor: 'border-yellow-700', icon: Icons.Box, desc: '基本電力備援' },
+            { id: 'ups-2u', category: 'heavy', name: '2U UPS 不斷電', uHeight: 2, color: 'bg-zinc-900', borderColor: 'border-yellow-600', icon: Icons.Box, desc: '進階電力備援' },
+            { id: 'ups-3u', category: 'heavy', name: '3U UPS 不斷電', uHeight: 3, color: 'bg-zinc-950', borderColor: 'border-yellow-500', icon: Icons.Box, desc: '高容量電池模組' },
+            { id: 'ups-6u', category: 'heavy', name: '桌上型 UPS (6U)', uHeight: 6, color: 'bg-zinc-950/85', borderColor: 'border-orange-500', icon: Icons.Box, isHalfWidth: true, allowInShelf: true, desc: '直立式 UPS (半寬)' },
+            { id: 'nas-6u', category: 'heavy', name: '桌上型 NAS (6U)', uHeight: 6, color: 'bg-gray-800/85', borderColor: 'border-green-500', icon: Icons.HardDrive, isHalfWidth: true, allowInShelf: true, desc: '直立式 NAS (半寬)' },
+            { id: 'server-tower', category: 'heavy', name: '直立式 Server (11U)', uHeight: 11, color: 'bg-slate-900/85', borderColor: 'border-indigo-500', icon: Icons.Server, isHalfWidth: true, allowInShelf: true, desc: '塔式伺服器 (半寬)' },
+
+            // === 3. 機櫃配件 ===
+            { id: 'patch-panel', category: 'accessory', name: '1U 跳線面板', uHeight: 1, color: 'bg-neutral-800', borderColor: 'border-neutral-600', icon: Icons.AlignJustify, desc: 'Patch Panel' },
+            { id: 'cable-manager', category: 'accessory', name: '1U 理線槽', uHeight: 1, color: 'bg-neutral-900', borderColor: 'border-neutral-700', icon: Icons.GripHorizontal, desc: 'Cable Manager' },
+            { id: 'brush-panel', category: 'accessory', name: '1U 毛刷面板', uHeight: 1, color: 'bg-stone-800', borderColor: 'border-stone-600', icon: Icons.Grid, desc: 'Brush Panel' },
+            { id: 'blank-panel', category: 'accessory', name: '1U 檔板', uHeight: 1, color: 'bg-gray-900', borderColor: 'border-gray-700', icon: Icons.Minus, desc: 'Blank Panel' },
+            // 層板設為半透明，且加上模糊效果，增加質感
+            { id: 'shelf', category: 'accessory', name: '1U 固定層板', uHeight: 1, color: 'bg-gray-600/90 backdrop-blur-sm', borderColor: 'border-gray-400', icon: Icons.Layers, isShelf: true, desc: '可放置小型設備' },
+
+            // === 4. 小型裝置 (需搭配層板) ===
+            { id: 'modem', category: 'small', name: '數據機', uHeight: 1, color: 'bg-emerald-800', borderColor: 'border-emerald-500', icon: Icons.Wifi, allowInShelf: true, desc: 'ISP 接入設備' },
+            { id: 'small-switch', category: 'small', name: '小型 Switch', uHeight: 1, color: 'bg-sky-800', borderColor: 'border-sky-500', icon: Icons.Activity, allowInShelf: true, desc: '桌上型 Switch' },
+            { id: 'dvr', category: 'small', name: 'DVR 主機', uHeight: 1, color: 'bg-purple-900', borderColor: 'border-purple-500', icon: Icons.Camera, allowInShelf: true, desc: '監控錄影主機' },
+        ];
+
+        const CATEGORIES = [
+            { id: 'standard', name: '常用設備' },
+            { id: 'heavy', name: '大型主機' },
+            { id: 'accessory', name: '機櫃配件' },
+            { id: 'small', name: '小型裝置' },
+        ];
+
+        const U_HEIGHT_NORMAL = 40; 
+        const U_HEIGHT_PRINT = 20;
+
+        function RackConfigurator() {
+            const [totalU, setTotalU] = useState(42);
+            const [placedItems, setPlacedItems] = useState([]);
+            const [clientName, setClientName] = useState('');
+            const [draggedItemType, setDraggedItemType] = useState(null);
+            const [draggedInstanceId, setDraggedInstanceId] = useState(null); // 用於重新拖曳
+            const [previewMode, setPreviewMode] = useState(false);
+            const [hoveredU, setHoveredU] = useState(null);
+            const [selectedCategory, setSelectedCategory] = useState('standard');
+
+            const currentUHeight = previewMode ? U_HEIGHT_PRINT : U_HEIGHT_NORMAL;
+            const uSlots = Array.from({ length: totalU }, (_, i) => totalU - i);
+
+            // 計算設備清單
+            const equipmentList = useMemo(() => {
+                const map = {};
+                placedItems.forEach(item => {
+                    if (item.isShelf && item.content) {
+                        // 統計層板內的設備
+                        item.content.forEach(sub => {
+                            if (!map[sub.id]) map[sub.id] = { ...sub, count: 0, positions: [] };
+                            map[sub.id].count++;
+                            map[sub.id].positions.push(`${item.position}U(層板)`);
+                        });
+                        // 統計層板本身
+                        if (!map[item.id]) map[item.id] = { ...item, count: 0, positions: [] };
+                        map[item.id].count++;
+                        map[item.id].positions.push(`${item.position}U`);
+                    } else {
+                        if (!map[item.id]) map[item.id] = { ...item, count: 0, positions: [] };
+                        map[item.id].count++;
+                        let posStr = `${item.position}U`;
+                        if (item.isHalfWidth) posStr += item.side === 'left' ? '(左)' : '(右)';
+                        map[item.id].positions.push(posStr);
+                    }
+                });
+                return Object.values(map);
+            }, [placedItems]);
+
+            const handleTotalUChange = (e) => {
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val > 0 && val <= 60) {
+                    setTotalU(val);
+                    setPlacedItems(prev => prev.filter(item => item.position + item.uHeight - 1 <= val));
+                }
+            };
+
+            // 處理新設備拖曳
+            const handleDragStart = (e, deviceType) => {
+                setDraggedItemType(deviceType);
+                setDraggedInstanceId(null); // 確保是新設備
+                e.dataTransfer.effectAllowed = 'copy';
+            };
+
+            // 處理已放置設備的重新拖曳
+            const handleItemDragStart = (e, item) => {
+                e.stopPropagation(); // 防止觸發其他 drag
+                setDraggedItemType(item); // 傳遞完整的 item 物件
+                setDraggedInstanceId(item.instanceId);
+                e.dataTransfer.effectAllowed = 'move';
+            };
+
+            const handleDragOver = (e, u) => {
+                e.preventDefault();
+                setHoveredU(u);
+            };
+
+            const getItemsAtPosition = (u) => {
+                return placedItems.filter(item => item.position === u);
+            };
+
+            const handleDrop = (e, uPosition) => {
+                e.preventDefault();
+                setHoveredU(null);
+                if (!draggedItemType) return;
+
+                const itemData = draggedItemType; // 包含設備資訊
+                const isMove = !!draggedInstanceId;
+
+                // 1. 檢查是否為層板內放置邏輯 (針對層板本身)
+                const existingItems = getItemsAtPosition(uPosition);
+                const shelfItem = existingItems.find(i => i.isShelf);
+
+                // 修正：增加 !itemData.isHalfWidth 條件，並且加上 uHeight === 1
+                // 確保只有 "非半寬" 且 "高度為1U" 的小型設備才會被塞進層板容器陣列中
+                // 這樣 6U NAS 等大型設備就會強制跳過此區塊，進入下方的堆疊邏輯
+                if (shelfItem && shelfItem.isShelf && itemData.allowInShelf && !itemData.isHalfWidth && itemData.uHeight === 1) {
+                    let newPlacedItems = [...placedItems];
+                    
+                    newPlacedItems = newPlacedItems.map(item => {
+                        if (item.instanceId === shelfItem.instanceId) {
+                            return {
+                                ...item,
+                                content: [...(item.content || []), { ...itemData, innerId: Date.now() }]
+                            };
+                        }
+                        return item;
+                    });
+                    setPlacedItems(newPlacedItems);
+                    return;
+                }
+
+                // 2. 半寬設備邏輯 (直立式 Server, UPS 6U 等)
+                if (itemData.isHalfWidth) {
+                    let canLeft = true;
+                    let canRight = true;
+                    const itemsToCheck = isMove ? placedItems.filter(i => i.instanceId !== draggedInstanceId) : placedItems;
+
+                    if (uPosition + itemData.uHeight - 1 > totalU) {
+                        alert('空間不足！超出機櫃高度。');
+                        return;
+                    }
+
+                    for (let u = uPosition; u < uPosition + itemData.uHeight; u++) {
+                        const occupiers = itemsToCheck.filter(i => i.position <= u && i.position + i.uHeight > u);
+                        occupiers.forEach(occ => {
+                            // 如果佔用者是層板，我們忽略它 (視為可重疊/站在上面)
+                            if (occ.isShelf) return; 
+
+                            if (!occ.isHalfWidth) { canLeft = false; canRight = false; }
+                            else {
+                                if (occ.side === 'left') canLeft = false;
+                                if (occ.side === 'right') canRight = false;
+                            }
+                        });
+                    }
+
+                    let sideToPlace = null;
+                    if (canLeft) sideToPlace = 'left';
+                    else if (canRight) sideToPlace = 'right';
+                    else {
+                        alert(`空間不足！無法在 U${uPosition} 放置此半寬設備 (需連續 ${itemData.uHeight}U 的單側空間)。`);
+                        return;
+                    }
+
+                    if (isMove) {
+                        setPlacedItems(prev => prev.map(item => 
+                            item.instanceId === draggedInstanceId 
+                            ? { ...item, position: uPosition, side: sideToPlace } 
+                            : item
+                        ));
+                    } else {
+                        const newItem = {
+                            instanceId: Date.now(),
+                            ...itemData,
+                            position: uPosition,
+                            side: sideToPlace,
+                            content: []
+                        };
+                        setPlacedItems(prev => [...prev, newItem]);
+                    }
+                    return;
+                }
+
+                // 3. 全寬設備邏輯
+                // 增加判斷：如果 existingItem 是 Shelf，且新設備不是半寬 (上面已過濾)，則視為衝突 (除非你要讓全寬設備也能疊在層板上? 一般不太會，通常是小設備)
+                // 修正：現在為了讓大型設備能疊在層板上，如果遇到 Shelf，我們忽略衝突檢查 (如果它是 > 1U 的大型設備)
+                const isLargeDevice = itemData.uHeight > 1;
+                
+                if (checkCollision(uPosition, itemData.uHeight, isMove ? draggedInstanceId : null, isLargeDevice)) {
+                    alert(`空間不足！無法在 U${uPosition} 放置 ${itemData.uHeight}U 的設備。`);
+                    return;
+                }
+
+                if (isMove) {
+                    setPlacedItems(prev => prev.map(item => 
+                        item.instanceId === draggedInstanceId 
+                        ? { ...item, position: uPosition } 
+                        : item
+                    ));
+                } else {
+                    const newItem = {
+                        instanceId: Date.now(),
+                        ...itemData,
+                        position: uPosition,
+                        content: []
+                    };
+                    setPlacedItems(prev => [...prev, newItem]);
+                }
+            };
+
+            // 修正碰撞檢查：允許大型設備與層板重疊
+            const checkCollision = (startU, height, ignoreId = null, allowShelfOverlap = false) => {
+                if (startU + height - 1 > totalU) return true;
+                const newRange = Array.from({ length: height }, (_, i) => startU + i);
+                const itemsToCheck = ignoreId ? placedItems.filter(i => i.instanceId !== ignoreId) : placedItems;
+                return itemsToCheck.some(item => {
+                    // 如果允許層板重疊，且遇到的就是層板，則不視為碰撞
+                    if (allowShelfOverlap && item.isShelf) return false;
+
+                    const itemRange = Array.from({ length: item.uHeight }, (_, i) => item.position + i);
+                    return newRange.some(u => itemRange.includes(u));
+                });
+            };
+
+            const removeItem = (instanceId) => {
+                setPlacedItems(placedItems.filter(item => item.instanceId !== instanceId));
+            };
+
+            const removeInnerItem = (shelfInstanceId, innerId) => {
+                setPlacedItems(placedItems.map(item => {
+                    if (item.instanceId === shelfInstanceId) {
+                        return {
+                            ...item,
+                            content: item.content.filter(inner => inner.innerId !== innerId)
+                        };
+                    }
+                    return item;
+                }));
+            };
+
+            const clearRack = () => {
+                if (window.confirm('確定要清空目前的所有配置嗎？')) {
+                    setPlacedItems([]);
+                }
+            };
+
+            const isOccupiedByTallerItem = (u) => {
+                return placedItems.some(item => item.position < u && item.position + item.uHeight > u);
+            };
+
+            const mainContainerClass = previewMode 
+                ? 'min-h-screen font-sans bg-blueprint-pattern text-black' 
+                : 'min-h-screen font-sans bg-tech-pattern text-gray-100 flex flex-col main-layout';
+
+            return (
+                <div className={mainContainerClass} id={previewMode ? "print-container" : ""}>
+                    
+                    {previewMode && (
+                        <div className="watermark">
+                            <Icons.Logo size={300} className="text-gray-200" />
+                        </div>
+                    )}
+
+                    {!previewMode && (
+                        <header className="flex-none bg-gray-900/80 backdrop-blur-md border-b border-gray-700 p-4 shadow-lg z-50 no-print sticky top-0">
+                            <div className="max-w-7xl mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
+                                <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
+                                            <Icons.Server className="text-blue-400 w-8 h-8" />
+                                        </div>
+                                        <h1 className="text-xl font-bold tracking-wider text-white whitespace-nowrap">機櫃配置模擬器 Pro</h1>
+                                    </div>
+                                    <span className="text-xl text-yellow-400 font-bold whitespace-nowrap">
+                                        🔒 隱私聲明：輸入資訊請於個人 Client 端，Server 端並不會儲存任何資訊。
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-4 w-full md:w-auto mt-2 xl:mt-0 flex-wrap justify-end">
+                                    <div className="flex items-center gap-2 bg-gray-800 border border-gray-600 rounded px-3 py-2">
+                                        <span className="text-sm text-gray-400 whitespace-nowrap">高度 (U):</span>
+                                        <input type="number" min="6" max="60" className="bg-transparent text-white w-12 text-center focus:outline-none focus:border-blue-500 border-b border-transparent transition-colors font-mono font-bold" value={totalU} onChange={handleTotalUChange} />
+                                    </div>
+                                    <input type="text" placeholder="輸入客戶名稱 / 專案代號..." className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-full md:w-64 transition-all text-white placeholder-gray-500" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                                    <button onClick={() => setPreviewMode(true)} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 px-4 py-2 rounded text-sm font-medium transition-all text-white shadow-lg hover:shadow-blue-500/30 whitespace-nowrap">
+                                        <Icons.Camera size={16} /> 匯出/截圖模式
+                                    </button>
+                                </div>
+                            </div>
+                        </header>
+                    )}
+
+                    {previewMode && (
+                        <div className="fixed top-4 right-4 z-50 no-print flex gap-2">
+                            <button onClick={() => setPreviewMode(false)} className="bg-gray-800 text-white px-4 py-2 rounded shadow-lg flex items-center gap-2 hover:bg-gray-700 transition-colors">
+                                <Icons.RotateCcw size={16} /> 返回編輯
+                            </button>
+                            <button onClick={() => window.print()} className="bg-blue-600 text-white px-4 py-2 rounded shadow-lg flex items-center gap-2 hover:bg-blue-500 transition-colors shadow-blue-500/30">
+                                <Icons.Printer size={16} /> 列印 / 存為 PDF
+                            </button>
+                        </div>
+                    )}
+
+                    <div className={`flex flex-1 w-full ${previewMode ? 'bg-white justify-center p-8' : ''}`}>
+                        
+                        {/* 左側：工具箱 (Sticky Sidebar) */}
+                        {!previewMode && (
+                            <div className="w-80 flex-none relative no-print">
+                                <aside className="w-80 flex-none bg-gray-800/90 border-r border-gray-700 overflow-y-auto custom-scrollbar p-4 fixed top-24 bottom-0 left-0 z-40">
+                                    <div className="space-y-6 pb-20">
+                                        <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl">
+                                            <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
+                                                <Icons.Box size={18} className="text-blue-400"/> 可用設備
+                                            </h2>
+                                            
+                                            {/* 分類 Tabs */}
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                {CATEGORIES.map(cat => (
+                                                    <button 
+                                                        key={cat.id}
+                                                        onClick={() => setSelectedCategory(cat.id)}
+                                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                                            selectedCategory === cat.id 
+                                                            ? 'bg-blue-600 text-white' 
+                                                            : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                                        }`}
+                                                    >
+                                                        {cat.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            
+                                            <div className="space-y-3">
+                                                {DEVICE_TYPES.filter(d => d.category === selectedCategory).map((device) => (
+                                                    <div
+                                                        key={device.id}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e, device)}
+                                                        className="group bg-gray-700/50 hover:bg-gray-600 p-3 rounded-lg border border-gray-600 cursor-grab hover:border-blue-400 transition-all active:cursor-grabbing flex items-center gap-3 shadow-sm hover:shadow-md hover:translate-x-1 duration-200"
+                                                    >
+                                                        <div className={`p-2 rounded-md ${device.color} shadow-inner ring-1 ring-white/10`}>
+                                                            <device.icon size={20} className="text-white" />
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium text-sm text-gray-100 group-hover:text-white">{device.name}</div>
+                                                            <div className="text-xs text-gray-400 group-hover:text-gray-300">{device.uHeight}U</div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* 統計資訊區塊 */}
+                                        <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl">
+                                            <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
+                                                <Icons.Activity size={18} className="text-green-400"/>
+                                                統計資訊
+                                            </h2>
+                                            <div className="space-y-3 text-sm">
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">機櫃規格</span>
+                                                    <span className="font-mono text-white font-bold">{totalU} U</span>
+                                                </div>
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">已使用空間</span>
+                                                    <span className="font-mono text-blue-300 font-bold bg-blue-900/50 px-2 py-0.5 rounded border border-blue-500/20">
+                                                        {placedItems.reduce((acc, item) => acc + item.uHeight, 0)} / {totalU} U
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">設備總數</span>
+                                                    <span className="font-mono text-white font-bold">{placedItems.length}</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={clearRack}
+                                                className="mt-6 w-full py-2.5 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 hover:border-red-500/60 text-sm flex items-center justify-center gap-2 transition-all font-medium"
+                                            >
+                                                <Icons.Trash2 size={16} /> 重置所有配置
+                                            </button>
+                                        </div>
+                                    </div>
+                                </aside>
+                            </div>
+                        )}
+
+                        {/* 中間/主要區域：機櫃 (頁面自然捲動) */}
+                        <main className={`flex-1 flex ${previewMode ? 'flex-row gap-8 justify-center items-start' : 'justify-center items-start p-8'}`}>
+                            
+                            {/* 機櫃配置展示區 */}
+                            <div className={`${previewMode ? 'w-full max-w-5xl' : 'w-full max-w-2xl pb-20'}`}>
+                                
+                                {/* 預覽模式：獨立標頭 */}
+                                <div className={`${previewMode ? 'block mb-6' : 'hidden'} border-b-2 border-gray-800 pb-6 relative z-10 w-full`}>
+                                    <div className="flex justify-between items-end mb-4">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <div className="bg-black text-white p-2 rounded">
+                                                    <Icons.Server size={28} />
+                                                </div>
+                                                <h1 className="text-3xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
+                                            </div>
+                                            <p className="text-gray-500 text-sm ml-14">Rack Configuration Report</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="bg-gray-100 px-4 py-2 rounded-lg border border-gray-200">
+                                                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Project Code</p>
+                                                <p className="text-lg font-mono font-bold text-gray-900">{clientName ? clientName.substring(0, 8).toUpperCase() : 'N/A'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-8 text-sm bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <div className="flex-1">
+                                            <p className="text-gray-500 text-xs mb-1">客戶名稱 / 專案</p>
+                                            <p className="font-bold text-gray-900 text-lg border-b border-gray-300 pb-1">{clientName || '未指定專案'}</p>
+                                        </div>
+                                        <div className="w-48">
+                                            <p className="text-gray-500 text-xs mb-1">機櫃規格</p>
+                                            <p className="font-bold text-gray-900 text-lg border-b border-gray-300 pb-1">{totalU} U 標準機櫃</p>
+                                        </div>
+                                        <div className="w-48">
+                                            <p className="text-gray-500 text-xs mb-1">規劃日期</p>
+                                            <p className="font-bold text-gray-900 text-lg border-b border-gray-300 pb-1">{new Date().toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* 預覽模式內容區：機櫃圖 + BOM 表並排 */}
+                                <div className={`${previewMode ? 'flex flex-row gap-8 items-start' : ''}`}>
+                                    
+                                    {/* 左欄：機櫃圖 */}
+                                    <div className={`${previewMode ? 'flex-none w-[320px]' : ''}`}>
+                                        {/* 編輯模式的標頭 */}
+                                        <div className={`${previewMode ? 'hidden' : 'block mb-4'} border-b-2 border-gray-800 pb-4 relative z-10`}>
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <div className="bg-black text-white p-2 rounded">
+                                                    <Icons.Server size={24} />
+                                                </div>
+                                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
+                                            </div>
+                                            <div className="mt-2 text-sm text-gray-600">
+                                                <p><span className="font-bold">客戶:</span> {clientName || 'N/A'}</p>
+                                                <p><span className="font-bold">日期:</span> {new Date().toLocaleDateString()}</p>
+                                                <p><span className="font-bold">規格:</span> {totalU} U</p>
+                                            </div>
+                                        </div>
+
+                                        {/* 機櫃本體 */}
+                                        <div 
+                                            id="rack-container"
+                                            className={`relative z-10 bg-zinc-800 border-x-[16px] border-t-[8px] border-b-[8px] border-zinc-700 shadow-2xl rounded-sm ${previewMode ? 'print-border shadow-none' : ''}`}
+                                        >
+                                            <div className="h-4 bg-black flex items-center justify-center gap-8 px-8">
+                                                <div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
+                                                <div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
+                                            </div>
+
+                                            {/* U 網格與 Drop Zone */}
+                                            <div className="bg-black/90 relative" style={{ height: totalU * currentUHeight }}>
+                                                
+                                                {/* 1. 渲染網格背景 */}
+                                                {uSlots.map((u) => (
+                                                    <div 
+                                                        key={u}
+                                                        onDragOver={(e) => handleDragOver(e, u)}
+                                                        onDrop={(e) => handleDrop(e, u)}
+                                                        className={`absolute w-full border-b border-gray-800 box-border group transition-colors flex items-center justify-between px-2 ${
+                                                            !previewMode && hoveredU === u ? 'bg-blue-500/20' : ''
+                                                        }`}
+                                                        style={{
+                                                            height: currentUHeight,
+                                                            bottom: (u - 1) * currentUHeight,
+                                                            left: 0
+                                                        }}
+                                                    >
+                                                        {/* 左側 U 標號 - Z-index 50 確保置頂 */}
+                                                        <div className="absolute left-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none">
+                                                            <span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span>
+                                                        </div>
+
+                                                        {/* 右側 U 標號 - Z-index 50 確保置頂 */}
+                                                        <div className="absolute right-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none">
+                                                            <span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span>
+                                                        </div>
+                                                        
+                                                        {/* 裝飾孔 */}
+                                                        <div className="absolute left-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none">
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                        </div>
+                                                        <div className="absolute right-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none">
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                            <div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                {/* 2. 渲染設備 */}
+                                                {placedItems.map((item) => (
+                                                    <div
+                                                        key={item.instanceId}
+                                                        draggable={!previewMode}
+                                                        onDragStart={(e) => !previewMode && handleItemDragStart(e, item)}
+                                                        onDragOver={(e) => handleDragOver(e, item.position)}
+                                                        onDrop={(e) => handleDrop(e, item.position)}
+                                                        className={`absolute rounded-sm shadow-md flex items-center px-2 gap-2 cursor-grab active:cursor-grabbing
+                                                            ${item.color} ${item.borderColor} border-l-4 border-r-4 transition-all
+                                                            ${item.isShelf ? 'z-30' : 'z-20'} 
+                                                        `}
+                                                        style={{
+                                                            bottom: (item.position - 1) * currentUHeight + 1,
+                                                            height: item.uHeight * currentUHeight - 2,
+                                                            // 修正寬度顯示：使用 calc 確保在不同寬度下都能避開 U 數 (32px) 但貼齊導軌
+                                                            left: item.isHalfWidth 
+                                                                ? (item.side === 'right' ? 'calc(50% + 2px)' : '35px') 
+                                                                : '35px',
+                                                            width: item.isHalfWidth 
+                                                                ? 'calc(50% - 37px)' 
+                                                                : 'calc(100% - 70px)',
+                                                        }}
+                                                    >
+                                                        {item.isShelf ? (
+                                                            <div className="flex-1 flex items-center gap-1 h-full overflow-hidden pl-5">
+                                                                <div className="flex flex-col justify-center mr-1 relative group/icon">
+                                                                    <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
+                                                                    {!previewMode && (
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} 
+                                                                            className="absolute -left-1 -top-1 p-0.5 text-red-400 bg-gray-900/80 rounded-full opacity-0 group-hover/icon:opacity-100 transition-opacity"
+                                                                            title="移除整個層板"
+                                                                        >
+                                                                            <Icons.X size={8} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex flex-1 gap-1 h-[90%] items-end overflow-hidden">
+                                                                    {item.content && item.content.map((inner) => (
+                                                                        <div key={inner.innerId} className={`relative group/inner flex-1 h-full min-w-[10px] rounded flex items-center justify-center border ${inner.color} ${inner.borderColor}`}>
+                                                                            <span className="text-[8px] text-white truncate px-1 hidden sm:inline">{inner.name}</span>
+                                                                            {!previewMode && (
+                                                                                <button 
+                                                                                    onClick={(e) => { e.stopPropagation(); removeInnerItem(item.instanceId, inner.innerId); }} 
+                                                                                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-red-300 hover:text-red-100 hover:bg-red-500/50 rounded opacity-0 group-hover/inner:opacity-100 transition-opacity"
+                                                                                    title="移除此設備"
+                                                                                >
+                                                                                    <Icons.Trash2 size={10} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex flex-col gap-0.5">
+                                                                    <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
+                                                                    <div className="w-1 h-1 rounded-full bg-blue-400 opacity-75"></div>
+                                                                </div>
+                                                                <item.icon className="text-white/80 flex-shrink-0" size={previewMode ? 12 : 18} />
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
+                                                                    <div className={`text-white font-bold truncate ${previewMode ? 'text-[9px]' : 'text-xs'}`}>{item.name}</div>
+                                                                    <div className={`text-white/50 truncate ${previewMode ? 'text-[7px]' : 'text-[9px]'}`}>{item.desc}</div>
+                                                                </div>
+                                                            </>
+                                                        )}
+
+                                                        {!previewMode && !item.isShelf && (
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} 
+                                                                className="p-1 text-red-400 hover:bg-black/30 rounded absolute right-1 top-1"
+                                                            >
+                                                                <Icons.Trash2 size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 右欄：設備清單 */}
+                                    {previewMode && (
+                                        <div className="flex-1">
+                                            <div className="bg-white border-2 border-gray-800 rounded p-6">
+                                                <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2">
+                                                    <Icons.Activity className="text-black"/> 設備配置清單 (BOM)
+                                                </h2>
+                                                <div className="overflow-hidden">
+                                                    <table className="w-full text-sm text-left">
+                                                        <thead className="bg-gray-100 text-gray-900 font-bold uppercase">
+                                                            <tr>
+                                                                <th className="px-4 py-2 border-b border-gray-300">設備名稱</th>
+                                                                <th className="px-4 py-2 border-b border-gray-300 w-16 text-center">數量</th>
+                                                                <th className="px-4 py-2 border-b border-gray-300">位置 (U)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-gray-200">
+                                                            {equipmentList.length > 0 ? (
+                                                                equipmentList.map((eq, idx) => (
+                                                                    <tr key={idx} className="hover:bg-gray-50">
+                                                                        <td className="px-4 py-2 font-medium">{eq.name}</td>
+                                                                        <td className="px-4 py-2 text-center font-bold">{eq.count}</td>
+                                                                        <td className="px-4 py-2 text-gray-600 text-xs">
+                                                                            {eq.positions.sort((a,b)=>parseInt(b)-parseInt(a)).join(', ')}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))
+                                                            ) : (
+                                                                <tr>
+                                                                    <td colSpan="3" className="px-4 py-8 text-center text-gray-400 italic">尚無配置設備</td>
+                                                                </tr>
+                                                            )}
+                                                        </tbody>
+                                                        <tfoot className="bg-gray-50 font-bold">
+                                                            <tr>
+                                                                <td className="px-4 py-2 border-t border-gray-300">總計設備數</td>
+                                                                <td className="px-4 py-2 border-t border-gray-300 text-center text-blue-600">
+                                                                    {placedItems.reduce((acc, item) => acc + (item.content ? item.content.length : 1), 0)}
+                                                                </td>
+                                                                <td className="border-t border-gray-300"></td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                                <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-xs text-gray-500">
+                                                    <p>備註:</p>
+                                                    <ul className="list-disc pl-4 mt-1 space-y-1">
+                                                        <li>本表由系統自動生成，實際安裝位置請依現場狀況微調。</li>
+                                                        <li>層板內設備以括號標示。</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                        </main>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<RackConfigurator />);
+    </script>
+</body>
+</html>
