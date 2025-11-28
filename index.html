@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>機櫃配置模擬器 Pro (Mobile Ready)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>機櫃配置模擬器 Pro</title>
     
     <!-- 引入 React 和 ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -16,7 +16,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; }
         
         /* === 背景美化設定 === */
         .bg-tech-pattern {
@@ -27,7 +27,7 @@
                 linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), 
                 linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
             background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
-            background-attachment: fixed; 
+            background-attachment: fixed; /* 背景固定 */
         }
 
         .bg-blueprint-pattern {
@@ -49,7 +49,7 @@
         }
 
         /* 滾動條美化 */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
@@ -69,12 +69,7 @@
                 print-color-adjust: exact !important; 
                 margin: 0;
                 padding: 0;
-                overflow: visible !important;
-                height: auto !important;
             }
-            
-            /* 強制隱藏手機版側邊欄 */
-            aside { display: none !important; }
             
             #print-container {
                 width: 100%;
@@ -88,6 +83,15 @@
                 page-break-inside: avoid;
                 break-inside: avoid;
             }
+        }
+
+        /* 提示動畫 */
+        @keyframes bounce-in {
+            0% { transform: translate(-50%, 20px); opacity: 0; }
+            100% { transform: translate(-50%, 0); opacity: 1; }
+        }
+        .animate-bounce-in {
+            animation: bounce-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
         }
     </style>
 </head>
@@ -118,17 +122,20 @@
             GripHorizontal: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="9" r="1"/><circle cx="19" cy="9" r="1"/><circle cx="5" cy="9" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="19" cy="15" r="1"/><circle cx="5" cy="15" r="1"/></svg>,
             Monitor: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
             Hand: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>,
+            Lock: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
         };
 
         // 設備定義
         const DEVICE_TYPES = [
+            // === 1. 標準設備 ===
             { id: 'server-1u', category: 'standard', name: '1U 伺服器', uHeight: 1, color: 'bg-slate-700', borderColor: 'border-slate-500', icon: Icons.Server, desc: '標準運算節點' },
             { id: 'server-2u', category: 'standard', name: '2U 伺服器', uHeight: 2, color: 'bg-slate-800', borderColor: 'border-blue-500', icon: Icons.Server, desc: '高效能伺服器' },
             { id: 'kvm', category: 'standard', name: '1U LCD KVM', uHeight: 1, color: 'bg-zinc-700', borderColor: 'border-zinc-500', icon: Icons.Monitor, desc: '折疊式螢幕鍵盤組' },
             { id: 'firewall', category: 'standard', name: '1U 防火牆/路由', uHeight: 1, color: 'bg-red-900', borderColor: 'border-red-500', icon: Icons.Shield, desc: '資安防護設備' },
             { id: 'switch', category: 'standard', name: '1U 交換器', uHeight: 1, color: 'bg-cyan-900', borderColor: 'border-cyan-500', icon: Icons.Activity, desc: '網路交換器' },
             
-            // 大型主機/UPS (半寬設備) - 加上透明度
+            // === 2. 大型主機/UPS (半寬設備) ===
+            // 這裡的 color 加上 /85 代表透明度，讓層板可以透出來
             { id: 'ups-1u', category: 'heavy', name: '1U UPS 不斷電', uHeight: 1, color: 'bg-zinc-800', borderColor: 'border-yellow-700', icon: Icons.Box, desc: '基本電力備援' },
             { id: 'ups-2u', category: 'heavy', name: '2U UPS 不斷電', uHeight: 2, color: 'bg-zinc-900', borderColor: 'border-yellow-600', icon: Icons.Box, desc: '進階電力備援' },
             { id: 'ups-3u', category: 'heavy', name: '3U UPS 不斷電', uHeight: 3, color: 'bg-zinc-950', borderColor: 'border-yellow-500', icon: Icons.Box, desc: '高容量電池模組' },
@@ -136,7 +143,7 @@
             { id: 'nas-6u', category: 'heavy', name: '桌上型 NAS (6U)', uHeight: 6, color: 'bg-gray-800/85', borderColor: 'border-green-500', icon: Icons.HardDrive, isHalfWidth: true, allowInShelf: true, desc: '直立式 NAS (半寬)' },
             { id: 'server-tower', category: 'heavy', name: '直立式 Server (11U)', uHeight: 11, color: 'bg-slate-900/85', borderColor: 'border-indigo-500', icon: Icons.Server, isHalfWidth: true, allowInShelf: true, desc: '塔式伺服器 (半寬)' },
 
-            // 機櫃配件
+            // === 3. 機櫃配件 ===
             { id: 'patch-panel', category: 'accessory', name: '1U 跳線面板', uHeight: 1, color: 'bg-neutral-800', borderColor: 'border-neutral-600', icon: Icons.AlignJustify, desc: 'Patch Panel' },
             { id: 'cable-manager', category: 'accessory', name: '1U 理線槽', uHeight: 1, color: 'bg-neutral-900', borderColor: 'border-neutral-700', icon: Icons.GripHorizontal, desc: 'Cable Manager' },
             { id: 'brush-panel', category: 'accessory', name: '1U 毛刷面板', uHeight: 1, color: 'bg-stone-800', borderColor: 'border-stone-600', icon: Icons.Grid, desc: 'Brush Panel' },
@@ -144,7 +151,7 @@
             // 層板 - 半透明 + 模糊
             { id: 'shelf', category: 'accessory', name: '1U 固定層板', uHeight: 1, color: 'bg-gray-600/90 backdrop-blur-sm', borderColor: 'border-gray-400', icon: Icons.Layers, isShelf: true, desc: '可放置小型設備' },
 
-            // 小型裝置
+            // === 4. 小型裝置 (需搭配層板) ===
             { id: 'modem', category: 'small', name: '數據機', uHeight: 1, color: 'bg-emerald-800', borderColor: 'border-emerald-500', icon: Icons.Wifi, allowInShelf: true, desc: 'ISP 接入設備' },
             { id: 'small-switch', category: 'small', name: '小型 Switch', uHeight: 1, color: 'bg-sky-800', borderColor: 'border-sky-500', icon: Icons.Activity, allowInShelf: true, desc: '桌上型 Switch' },
             { id: 'dvr', category: 'small', name: 'DVR 主機', uHeight: 1, color: 'bg-purple-900', borderColor: 'border-purple-500', icon: Icons.Camera, allowInShelf: true, desc: '監控錄影主機' },
@@ -165,10 +172,9 @@
             const [placedItems, setPlacedItems] = useState([]);
             const [clientName, setClientName] = useState('');
             
-            // 拖曳 & 點選狀態
             const [draggedItemType, setDraggedItemType] = useState(null);
             const [draggedInstanceId, setDraggedInstanceId] = useState(null); 
-            const [selectedSource, setSelectedSource] = useState(null); // { device: ..., instanceId: ... }
+            const [selectedSource, setSelectedSource] = useState(null); 
 
             const [previewMode, setPreviewMode] = useState(false);
             const [hoveredU, setHoveredU] = useState(null);
@@ -213,11 +219,10 @@
             const performPlace = (uPosition, itemData, instanceId = null) => {
                 const isMove = !!instanceId;
 
-                // 1. 層板內容物邏輯
                 const existingItems = placedItems.filter(item => item.position === uPosition);
                 const shelfItem = existingItems.find(i => i.isShelf);
 
-                // 修正：增加 itemData.uHeight === 1，確保大設備不塞進層板
+                // 1. 層板內容物邏輯
                 if (shelfItem && shelfItem.isShelf && itemData.allowInShelf && !itemData.isHalfWidth && itemData.uHeight === 1) {
                     let newPlacedItems = [...placedItems];
                     newPlacedItems = newPlacedItems.map(item => {
@@ -247,7 +252,7 @@
                     for (let u = uPosition; u < uPosition + itemData.uHeight; u++) {
                         const occupiers = itemsToCheck.filter(i => i.position <= u && i.position + i.uHeight > u);
                         occupiers.forEach(occ => {
-                            if (occ.isShelf) return; // 忽略層板 (允許重疊)
+                            if (occ.isShelf) return; 
                             if (!occ.isHalfWidth) { canLeft = false; canRight = false; }
                             else {
                                 if (occ.side === 'left') canLeft = false;
@@ -285,7 +290,6 @@
 
                 // 3. 全寬設備邏輯
                 const isLargeDevice = itemData.uHeight > 1;
-                // 允許大設備蓋在層板上
                 if (checkCollision(uPosition, itemData.uHeight, isMove ? instanceId : null, isLargeDevice)) {
                     alert(`空間不足！無法在 U${uPosition} 放置設備。`);
                     return false;
@@ -320,7 +324,6 @@
                 });
             };
 
-            // --- 拖曳事件 ---
             const handleDragStart = (e, deviceType) => {
                 setDraggedItemType(deviceType);
                 setDraggedInstanceId(null);
@@ -346,9 +349,7 @@
                 performPlace(uPosition, draggedItemType, draggedInstanceId);
             };
 
-            // --- 點擊模式事件 (Tap to Place) ---
             const handleSidebarItemClick = (device) => {
-                // 如果已經選取同一個，則取消
                 if (selectedSource && selectedSource.device.id === device.id && !selectedSource.instanceId) {
                     setSelectedSource(null);
                 } else {
@@ -357,7 +358,7 @@
             };
 
             const handleRackItemClick = (e, item) => {
-                e.stopPropagation(); // 避免觸發 Slot click
+                e.stopPropagation();
                 if (!previewMode) {
                     setSelectedSource({ device: item, instanceId: item.instanceId });
                 }
@@ -367,7 +368,7 @@
                 if (!previewMode && selectedSource) {
                     const success = performPlace(u, selectedSource.device, selectedSource.instanceId);
                     if (success) {
-                        setSelectedSource(null); // 放置成功後取消選取
+                        setSelectedSource(null);
                     }
                 }
             };
@@ -397,7 +398,6 @@
                 }
             };
 
-            // RWD 判斷
             const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
             useEffect(() => {
                 const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -418,7 +418,6 @@
                         </div>
                     )}
 
-                    {/* 操作提示 Toast (僅在選取模式下顯示) */}
                     {!previewMode && selectedSource && (
                         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl z-[60] flex items-center gap-4 animate-bounce-in">
                             <span className="text-sm font-medium">
@@ -435,28 +434,33 @@
                         </div>
                     )}
 
+                    {/* 頂部工具列優化：極簡高度 h-10 */}
                     {!previewMode && (
-                        <header className="flex-none bg-gray-900/80 backdrop-blur-md border-b border-gray-700 p-4 shadow-lg z-50 no-print sticky top-0">
-                            <div className="max-w-7xl mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
-                                <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left">
-                                    <div className="flex items-center gap-2">
-                                        <div className="bg-blue-600/20 p-2 rounded-lg border border-blue-500/30">
-                                            <Icons.Server className="text-blue-400 w-8 h-8" />
+                        <header className="flex-none bg-gray-900/95 backdrop-blur-md border-b border-gray-700 shadow-lg z-50 no-print sticky top-0 h-10 flex items-center px-4">
+                            <div className="w-full max-w-7xl mx-auto flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-blue-600/20 p-1 rounded border border-blue-500/30">
+                                        <Icons.Server className="text-blue-400 w-4 h-4" />
+                                    </div>
+                                    <h1 className="text-sm font-bold tracking-wide text-white whitespace-nowrap">機櫃配置 Pro</h1>
+                                    
+                                    {/* 隱私聲明 Tooltip */}
+                                    <div className="group relative flex items-center ml-1">
+                                        <Icons.Lock className="text-yellow-500/70 w-3.5 h-3.5 cursor-help" />
+                                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 bg-black/90 text-xs text-gray-200 p-2 rounded border border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50">
+                                            隱私聲明：所有操作僅於您的瀏覽器端執行 (Client-side)，不會上傳至任何伺服器，請安心使用。
                                         </div>
-                                        <h1 className="text-xl font-bold tracking-wider text-white whitespace-nowrap">機櫃配置模擬器 Pro</h1>
                                     </div>
-                                    <span className="hidden md:inline text-xl text-yellow-400 font-bold whitespace-nowrap">
-                                        🔒 隱私聲明：輸入資訊請於個人 Client 端，Server 端並不會儲存任何資訊。
-                                    </span>
                                 </div>
-                                <div className="flex items-center gap-4 w-full md:w-auto mt-2 xl:mt-0 flex-wrap justify-end">
-                                    <div className="flex items-center gap-2 bg-gray-800 border border-gray-600 rounded px-3 py-2">
-                                        <span className="text-sm text-gray-400 whitespace-nowrap">高度 (U):</span>
-                                        <input type="number" min="6" max="60" className="bg-transparent text-white w-12 text-center focus:outline-none focus:border-blue-500 border-b border-transparent transition-colors font-mono font-bold" value={totalU} onChange={handleTotalUChange} />
+
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 bg-gray-800 border border-gray-600 rounded px-2 h-7">
+                                        <span className="text-xs text-gray-400 whitespace-nowrap">高(U):</span>
+                                        <input type="number" min="6" max="60" className="bg-transparent text-white w-8 text-center focus:outline-none font-mono font-bold text-xs h-full" value={totalU} onChange={handleTotalUChange} />
                                     </div>
-                                    <input type="text" placeholder="輸入客戶名稱..." className="bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-full md:w-64 transition-all text-white placeholder-gray-500" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-                                    <button onClick={() => setPreviewMode(true)} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 px-4 py-2 rounded text-sm font-medium transition-all text-white shadow-lg hover:shadow-blue-500/30 whitespace-nowrap">
-                                        <Icons.Camera size={16} /> 匯出
+                                    <input type="text" placeholder="客戶名稱..." className="bg-gray-800 border border-gray-600 rounded px-2 text-xs focus:outline-none focus:border-blue-500 w-24 md:w-40 h-7 transition-all text-white placeholder-gray-500" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                                    <button onClick={() => setPreviewMode(true)} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 px-2.5 h-7 rounded text-xs font-medium text-white shadow hover:shadow-blue-500/30 transition-colors">
+                                        <Icons.Camera size={12} /> 匯出
                                     </button>
                                 </div>
                             </div>
@@ -476,242 +480,245 @@
 
                     <div className={`flex flex-col md:flex-row flex-1 w-full ${previewMode ? 'bg-white justify-center p-8' : ''}`}>
                         
-                        {/* 左側：工具箱 (Responsive) */}
+                        {/* 左側：工具箱 (Fixed) */}
                         {!previewMode && (
-                            <aside className={`w-full md:w-80 flex-none bg-gray-800/90 border-b md:border-r border-gray-700 overflow-x-auto md:overflow-y-auto custom-scrollbar p-4 no-print z-40 ${isMobile ? 'static' : 'sticky top-24 h-[calc(100vh-8rem)]'}`}>
-                                <div className="space-y-6">
-                                    <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl min-w-[300px]">
-                                        <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
-                                            <Icons.Box size={18} className="text-blue-400"/> 可用設備
-                                        </h2>
-                                        
-                                        {/* 分類 Tabs */}
-                                        <div className="flex flex-wrap gap-2 mb-4">
-                                            {CATEGORIES.map(cat => (
-                                                <button 
-                                                    key={cat.id}
-                                                    onClick={() => setSelectedCategory(cat.id)}
-                                                    className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                                        selectedCategory === cat.id 
-                                                        ? 'bg-blue-600 text-white' 
-                                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
-                                                    }`}
-                                                >
-                                                    {cat.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        
-                                        {/* 設備列表 (Click/Drag) */}
-                                        <div className="space-y-3">
-                                            {DEVICE_TYPES.filter(d => d.category === selectedCategory).map((device) => (
-                                                <div
-                                                    key={device.id}
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStart(e, device)}
-                                                    onClick={() => handleSidebarItemClick(device)}
-                                                    className={`group p-3 rounded-lg border cursor-pointer hover:border-blue-400 transition-all flex items-center gap-3 shadow-sm
-                                                        ${selectedSource && selectedSource.device.id === device.id && !selectedSource.instanceId ? 'bg-blue-900/50 border-blue-400 ring-2 ring-blue-500/50' : 'bg-gray-700/50 border-gray-600 hover:bg-gray-600'}
-                                                    `}
-                                                >
-                                                    <div className={`p-2 rounded-md ${device.color} shadow-inner ring-1 ring-white/10`}>
-                                                        <device.icon size={20} className="text-white" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-sm text-gray-100 group-hover:text-white">{device.name}</div>
-                                                        <div className="text-xs text-gray-400 group-hover:text-gray-300">{device.uHeight}U</div>
-                                                    </div>
-                                                    <div className="ml-auto text-gray-500 opacity-50 md:hidden">
-                                                        <Icons.Hand size={16} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                            <aside className={`flex-none bg-gray-800/90 border-b md:border-r border-gray-700 no-print z-40 
+                                ${isMobile ? 'w-full static overflow-x-auto' : 'w-72 fixed left-0 top-10 bottom-0 overflow-y-auto custom-scrollbar flex flex-col'}
+                            `}>
+                                <div className="p-4 space-y-4 flex-1">
+                                    {/* 分類 Tabs */}
+                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                        {CATEGORIES.map(cat => (
+                                            <button 
+                                                key={cat.id}
+                                                onClick={() => setSelectedCategory(cat.id)}
+                                                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border border-transparent ${
+                                                    selectedCategory === cat.id 
+                                                    ? 'bg-blue-600 text-white border-blue-500' 
+                                                    : 'bg-gray-700 text-gray-400 hover:bg-gray-600 border-gray-600'
+                                                }`}
+                                            >
+                                                {cat.name}
+                                            </button>
+                                        ))}
                                     </div>
                                     
-                                    {/* 統計資訊 (Desktop Only) */}
-                                    <div className="hidden md:block bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl">
-                                        <h2 className="text-lg font-semibold mb-4 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
-                                            <Icons.Activity size={18} className="text-green-400"/> 統計資訊
-                                        </h2>
-                                        <div className="space-y-3 text-sm">
-                                            <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
-                                                <span className="text-gray-400">設備總數</span>
-                                                <span className="font-mono text-white font-bold">{placedItems.length}</span>
+                                    {/* 設備列表 (cursor-pointer for click) */}
+                                    <div className="space-y-2">
+                                        {DEVICE_TYPES.filter(d => d.category === selectedCategory).map((device) => (
+                                            <div
+                                                key={device.id}
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, device)}
+                                                onClick={() => handleSidebarItemClick(device)}
+                                                className={`group p-2.5 rounded border cursor-pointer hover:border-blue-400 transition-all flex items-center gap-3 shadow-sm select-none
+                                                    ${selectedSource && selectedSource.device.id === device.id && !selectedSource.instanceId ? 'bg-blue-900/40 border-blue-400 ring-1 ring-blue-500/50' : 'bg-gray-700/40 border-gray-600 hover:bg-gray-600'}
+                                                `}
+                                            >
+                                                <div className={`p-1.5 rounded ${device.color} shadow-inner ring-1 ring-white/10`}>
+                                                    <device.icon size={18} className="text-white" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-sm text-gray-200 group-hover:text-white">{device.name}</div>
+                                                    <div className="text-[10px] text-gray-400 group-hover:text-gray-300">{device.uHeight}U</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <button onClick={clearRack} className="mt-4 w-full py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 text-sm flex items-center justify-center gap-2">
-                                            <Icons.Trash2 size={14} /> 清除全部
-                                        </button>
+                                        ))}
                                     </div>
                                 </div>
                             </aside>
                         )}
 
-                        {/* 中間/主要區域：機櫃 */}
-                        <main className={`flex-1 flex ${previewMode ? 'flex-row gap-8 justify-center items-start' : 'justify-center items-start p-4 md:p-8'}`}>
+                        {/* 中間/主要區域 */}
+                        <main className={`flex-1 flex flex-row justify-center items-start p-4 md:p-8 ${!previewMode ? 'md:ml-72' : ''}`}>
                             
-                            <div className={`${previewMode ? 'w-full max-w-5xl' : 'w-full max-w-2xl pb-20'}`}>
+                            {/* 修正：移除 items-start，改為 items-stretch (預設) 以讓右側 Sticky 生效 */}
+                            <div className="flex flex-row gap-6 w-full max-w-6xl justify-center">
                                 
-                                <div className={`${previewMode ? 'block mb-6' : 'hidden'} border-b-2 border-gray-800 pb-6 relative z-10 w-full`}>
-                                    <div className="flex justify-between items-end mb-4">
-                                        <div className="flex items-center gap-3 mb-1">
-                                            <div className="bg-black text-white p-2 rounded"><Icons.Server size={28} /></div>
-                                            <h1 className="text-3xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="bg-gray-100 px-4 py-2 rounded-lg border border-gray-200">
-                                                <p className="text-xs text-gray-500 uppercase font-semibold">Project Code</p>
-                                                <p className="text-lg font-mono font-bold text-gray-900">{clientName ? clientName.substring(0, 8).toUpperCase() : 'N/A'}</p>
+                                {/* 左側：機櫃圖 */}
+                                <div className={`${previewMode ? 'flex-none w-[320px]' : 'w-full max-w-2xl'}`}>
+                                    
+                                    {/* 標頭 (Preview Only) */}
+                                    <div className={`${previewMode ? 'block mb-6' : 'hidden'} border-b-2 border-gray-800 pb-6 relative z-10 w-full`}>
+                                        <div className="flex justify-between items-end mb-4">
+                                            <div>
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <div className="bg-black text-white p-2 rounded"><Icons.Server size={28} /></div>
+                                                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
+                                                </div>
+                                                <p className="text-gray-500 text-sm ml-14">Rack Configuration Report</p>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-8 text-sm bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                        <div className="flex-1"><p className="text-gray-500 text-xs mb-1">客戶</p><p className="font-bold text-gray-900 text-lg">{clientName || '未指定'}</p></div>
-                                        <div className="w-48"><p className="text-gray-500 text-xs mb-1">規格</p><p className="font-bold text-gray-900 text-lg">{totalU} U</p></div>
-                                        <div className="w-48"><p className="text-gray-500 text-xs mb-1">日期</p><p className="font-bold text-gray-900 text-lg">{new Date().toLocaleDateString()}</p></div>
-                                    </div>
-                                </div>
-
-                                <div className={`${previewMode ? 'flex flex-row gap-8 items-start' : ''}`}>
-                                    <div className={`${previewMode ? 'flex-none w-[320px]' : ''}`}>
-                                        <div className={`${previewMode ? 'hidden' : 'block mb-4'} border-b-2 border-gray-800 pb-4 relative z-10`}>
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <div className="bg-black text-white p-2 rounded"><Icons.Server size={24} /></div>
-                                                <h1 className="text-2xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
-                                            </div>
-                                            <div className="mt-2 text-sm text-gray-600">
-                                                <p><span className="font-bold">客戶:</span> {clientName || 'N/A'}</p>
-                                                <p><span className="font-bold">規格:</span> {totalU} U</p>
-                                            </div>
-                                        </div>
-
-                                        <div id="rack-container" className={`relative z-10 bg-zinc-800 border-x-[16px] border-t-[8px] border-b-[8px] border-zinc-700 shadow-2xl rounded-sm ${previewMode ? 'print-border shadow-none' : ''}`}>
-                                            <div className="h-4 bg-black flex items-center justify-center gap-8 px-8">
-                                                <div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
-                                                <div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
-                                            </div>
-
-                                            <div className="bg-black/90 relative" style={{ height: totalU * currentUHeight }}>
-                                                
-                                                {/* U 網格 */}
-                                                {uSlots.map((u) => (
-                                                    <div 
-                                                        key={u}
-                                                        onDragOver={(e) => handleDragOver(e, u)}
-                                                        onDrop={(e) => handleDrop(e, u)}
-                                                        onClick={() => handleSlotClick(u)}
-                                                        className={`absolute w-full border-b border-gray-800 box-border group transition-colors flex items-center justify-between px-2 cursor-pointer
-                                                            ${!previewMode && hoveredU === u ? 'bg-blue-500/20' : ''}
-                                                            ${!previewMode && selectedSource && !selectedSource.instanceId ? 'hover:bg-blue-500/10' : ''}
-                                                        `}
-                                                        style={{ height: currentUHeight, bottom: (u - 1) * currentUHeight, left: 0 }}
-                                                    >
-                                                        <div className="absolute left-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none">
-                                                            <span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span>
-                                                        </div>
-                                                        <div className="absolute right-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none">
-                                                            <span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span>
-                                                        </div>
-                                                        <div className="absolute left-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
-                                                        <div className="absolute right-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
-                                                    </div>
-                                                ))}
-
-                                                {/* 設備 */}
-                                                {placedItems.map((item) => (
-                                                    <div
-                                                        key={item.instanceId}
-                                                        draggable={!previewMode}
-                                                        onDragStart={(e) => !previewMode && handleItemDragStart(e, item)}
-                                                        onClick={(e) => handleRackItemClick(e, item)}
-                                                        onDragOver={(e) => handleDragOver(e, item.position)}
-                                                        onDrop={(e) => handleDrop(e, item.position)}
-                                                        className={`absolute rounded-sm shadow-md flex items-center px-2 gap-2 cursor-grab active:cursor-grabbing
-                                                            ${item.color} ${item.borderColor} border-l-4 border-r-4 transition-all
-                                                            ${item.isShelf ? 'z-30' : 'z-20'} 
-                                                            ${selectedSource && selectedSource.instanceId === item.instanceId ? 'ring-2 ring-yellow-400 opacity-80' : ''}
-                                                        `}
-                                                        style={{
-                                                            bottom: (item.position - 1) * currentUHeight + 1,
-                                                            height: item.uHeight * currentUHeight - 2,
-                                                            left: item.isHalfWidth ? (item.side === 'right' ? 'calc(50% + 2px)' : '35px') : '35px',
-                                                            width: item.isHalfWidth ? 'calc(50% - 37px)' : 'calc(100% - 70px)',
-                                                        }}
-                                                    >
-                                                        {item.isShelf ? (
-                                                            <div className="flex-1 flex items-center gap-1 h-full overflow-hidden pl-5">
-                                                                <div className="flex flex-col justify-center mr-1 relative group/icon">
-                                                                    <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
-                                                                    {!previewMode && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="absolute -left-2 -top-1 p-0.5 text-red-400 bg-gray-900/80 rounded-full z-50 hover:bg-gray-700" title="移除層板">
-                                                                            <Icons.Trash2 size={10} />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex flex-1 gap-1 h-[90%] items-end overflow-hidden">
-                                                                    {item.content && item.content.map((inner) => (
-                                                                        <div key={inner.innerId} className={`relative group/inner flex-1 h-full min-w-[10px] rounded flex items-center justify-center border ${inner.color} ${inner.borderColor}`}>
-                                                                            <span className="text-[8px] text-white truncate px-1 hidden sm:inline">{inner.name}</span>
-                                                                            {!previewMode && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); removeInnerItem(item.instanceId, inner.innerId); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-red-300 hover:text-red-100 hover:bg-red-500/50 rounded opacity-0 group-hover/inner:opacity-100 transition-opacity z-50">
-                                                                                    <Icons.Trash2 size={10} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <div className="flex flex-col gap-0.5">
-                                                                    <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
-                                                                    <div className="w-1 h-1 rounded-full bg-blue-400 opacity-75"></div>
-                                                                </div>
-                                                                <item.icon className="text-white/80 flex-shrink-0" size={previewMode ? 12 : 18} />
-                                                                <div className="flex-1 min-w-0 overflow-hidden">
-                                                                    <div className={`text-white font-bold truncate ${previewMode ? 'text-[9px]' : 'text-xs'}`}>{item.name}</div>
-                                                                    <div className={`text-white/50 truncate ${previewMode ? 'text-[7px]' : 'text-[9px]'}`}>{item.desc}</div>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                        {!previewMode && !item.isShelf && (
-                                                            <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="p-1 text-red-400 hover:bg-black/30 rounded absolute right-1 top-1 z-50">
-                                                                <Icons.Trash2 size={12} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {previewMode && (
-                                        <div className="flex-1">
-                                            <div className="bg-white border-2 border-gray-800 rounded p-6">
-                                                <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2"><Icons.Activity className="text-black"/> 設備配置清單 (BOM)</h2>
-                                                <table className="w-full text-sm text-left">
-                                                    <thead className="bg-gray-100 text-gray-900 font-bold uppercase">
-                                                        <tr><th className="px-4 py-2 border-b">設備名稱</th><th className="px-4 py-2 border-b w-16 text-center">數量</th><th className="px-4 py-2 border-b">位置 (U)</th></tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-200">
-                                                        {equipmentList.length > 0 ? (
-                                                            equipmentList.map((eq, idx) => (
-                                                                <tr key={idx} className="hover:bg-gray-50"><td className="px-4 py-2 font-medium">{eq.name}</td><td className="px-4 py-2 text-center font-bold">{eq.count}</td><td className="px-4 py-2 text-gray-600 text-xs">{eq.positions.sort((a,b)=>parseInt(b)-parseInt(a)).join(', ')}</td></tr>
-                                                            ))
-                                                        ) : (<tr><td colSpan="3" className="px-4 py-8 text-center text-gray-400 italic">尚無配置設備</td></tr>)}
-                                                    </tbody>
-                                                    <tfoot className="bg-gray-50 font-bold">
-                                                        <tr><td className="px-4 py-2 border-t">總計</td><td className="px-4 py-2 border-t text-center text-blue-600">{placedItems.reduce((acc, item) => acc + (item.content ? item.content.length : 1), 0)}</td><td className="border-t"></td></tr>
-                                                    </tfoot>
-                                                </table>
-                                                <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-xs text-gray-500">
-                                                    <p>備註:</p><ul className="list-disc pl-4 mt-1 space-y-1"><li>本表由系統自動生成，實際安裝位置請依現場狀況微調。</li><li>層板內設備以括號標示。</li></ul>
+                                            <div className="text-right">
+                                                <div className="bg-gray-100 px-4 py-2 rounded-lg border border-gray-200">
+                                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Project Code</p>
+                                                    <p className="text-lg font-mono font-bold text-gray-900">{clientName ? clientName.substring(0, 8).toUpperCase() : 'N/A'}</p>
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                        <div className="flex gap-8 text-sm bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <div className="flex-1"><p className="text-gray-500 text-xs mb-1">客戶名稱</p><p className="font-bold text-gray-900 text-lg">{clientName || '未指定專案'}</p></div>
+                                            <div className="w-48"><p className="text-gray-500 text-xs mb-1">規格</p><p className="font-bold text-gray-900 text-lg">{totalU} U</p></div>
+                                            <div className="w-48"><p className="text-gray-500 text-xs mb-1">日期</p><p className="font-bold text-gray-900 text-lg">{new Date().toLocaleDateString()}</p></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 機櫃本體 */}
+                                    <div id="rack-container" className={`relative z-10 bg-zinc-800 border-x-[16px] border-t-[8px] border-b-[8px] border-zinc-700 shadow-2xl rounded-sm ${previewMode ? 'print-border shadow-none' : ''}`}>
+                                        <div className="h-4 bg-black flex items-center justify-center gap-8 px-8">
+                                            <div className="w-16 h-1 bg-zinc-600 rounded-full"></div><div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
+                                        </div>
+
+                                        <div className="bg-black/90 relative" style={{ height: totalU * currentUHeight }}>
+                                            {/* U 網格 (cursor-pointer for click) */}
+                                            {uSlots.map((u) => (
+                                                <div 
+                                                    key={u}
+                                                    onDragOver={(e) => handleDragOver(e, u)}
+                                                    onDrop={(e) => handleDrop(e, u)}
+                                                    onClick={() => handleSlotClick(u)}
+                                                    className={`absolute w-full border-b border-gray-800 box-border group transition-colors flex items-center justify-between px-2 cursor-pointer
+                                                        ${!previewMode && hoveredU === u ? 'bg-blue-500/20' : ''}
+                                                        ${!previewMode && selectedSource && !selectedSource.instanceId ? 'hover:bg-blue-500/10' : ''}
+                                                    `}
+                                                    style={{ height: currentUHeight, bottom: (u - 1) * currentUHeight, left: 0 }}
+                                                >
+                                                    <div className="absolute left-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span></div>
+                                                    <div className="absolute right-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span></div>
+                                                    <div className="absolute left-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
+                                                    <div className="absolute right-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
+                                                </div>
+                                            ))}
+                                            {/* 設備渲染 */}
+                                            {placedItems.map((item) => (
+                                                <div
+                                                    key={item.instanceId}
+                                                    draggable={!previewMode}
+                                                    onDragStart={(e) => !previewMode && handleItemDragStart(e, item)}
+                                                    onClick={(e) => handleRackItemClick(e, item)}
+                                                    onDragOver={(e) => handleDragOver(e, item.position)}
+                                                    onDrop={(e) => handleDrop(e, item.position)}
+                                                    className={`absolute rounded-sm shadow-md flex items-center px-2 gap-2 cursor-grab active:cursor-grabbing
+                                                        ${item.color} ${item.borderColor} border-l-4 border-r-4 transition-all
+                                                        ${item.isShelf ? 'z-20' : 'z-30'} 
+                                                        ${selectedSource && selectedSource.instanceId === item.instanceId ? 'ring-2 ring-yellow-400 opacity-80' : ''}
+                                                    `}
+                                                    style={{
+                                                        bottom: (item.position - 1) * currentUHeight + 1,
+                                                        height: item.uHeight * currentUHeight - 2,
+                                                        left: item.isHalfWidth ? (item.side === 'right' ? 'calc(50% + 2px)' : '35px') : '35px',
+                                                        width: item.isHalfWidth ? 'calc(50% - 37px)' : 'calc(100% - 70px)',
+                                                    }}
+                                                >
+                                                    {/* ... 設備內容 ... */}
+                                                    {item.isShelf ? (
+                                                        <div className="flex-1 flex items-center gap-1 h-full overflow-hidden pl-7">
+                                                            <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col justify-center mr-1 relative group/icon">
+                                                                <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
+                                                                {!previewMode && (
+                                                                    <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="absolute -left-1 -top-6 p-0.5 text-red-400 bg-gray-900/90 border border-gray-600 rounded-full z-[60] opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-red-900 hover:text-white" title="移除層板">
+                                                                        <Icons.Trash2 size={10} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex flex-1 gap-1 h-[90%] items-end overflow-hidden">
+                                                                {item.content && item.content.map((inner) => (
+                                                                    <div key={inner.innerId} className={`relative group/inner flex-1 h-full min-w-[10px] rounded flex items-center justify-center border ${inner.color} ${inner.borderColor}`}>
+                                                                        <span className="text-[8px] text-white truncate px-1 hidden sm:inline">{inner.name}</span>
+                                                                        {!previewMode && (
+                                                                            <button onClick={(e) => { e.stopPropagation(); removeInnerItem(item.instanceId, inner.innerId); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-red-300 hover:text-white hover:bg-red-600 rounded opacity-0 group-hover/inner:opacity-100 transition-opacity z-50 bg-black/50">
+                                                                                <Icons.Trash2 size={12} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
+                                                                <div className="w-1 h-1 rounded-full bg-blue-400 opacity-75"></div>
+                                                            </div>
+                                                            <item.icon className="text-white/80 flex-shrink-0" size={previewMode ? 12 : 18} />
+                                                            <div className="flex-1 min-w-0 overflow-hidden">
+                                                                <div className={`text-white font-bold truncate ${previewMode ? 'text-[9px]' : 'text-xs'}`}>{item.name}</div>
+                                                                <div className={`text-white/50 truncate ${previewMode ? 'text-[7px]' : 'text-[9px]'}`}>{item.desc}</div>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {!previewMode && !item.isShelf && (
+                                                        <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="p-1 text-red-400 hover:bg-black/30 rounded absolute right-1 top-1 z-50">
+                                                            <Icons.Trash2 size={12} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* 右欄：統計資訊 (Desktop Sticky) - 改在右側 */}
+                                {!previewMode && (
+                                    <div className="hidden md:block w-64 flex-none">
+                                        <div className="bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl sticky top-16">
+                                            <h2 className="text-sm font-semibold mb-3 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
+                                                <Icons.Activity size={16} className="text-green-400"/>
+                                                即時統計
+                                            </h2>
+                                            <div className="space-y-2 text-xs mb-4">
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">機櫃規格</span>
+                                                    <span className="font-mono text-white font-bold">{totalU} U</span>
+                                                </div>
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">已用空間</span>
+                                                    <span className="font-mono text-blue-300 font-bold bg-blue-900/50 px-2 py-0.5 rounded border border-blue-500/20">
+                                                        {placedItems.reduce((acc, item) => acc + item.uHeight, 0)} U
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
+                                                    <span className="text-gray-400">設備總數</span>
+                                                    <span className="font-mono text-white font-bold">{placedItems.length}</span>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={clearRack}
+                                                className="w-full py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 hover:border-red-500/60 text-xs flex items-center justify-center gap-2 transition-all font-medium"
+                                            >
+                                                <Icons.Trash2 size={14} /> 清除全部配置
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 右欄：BOM 表 (Preview Only) */}
+                                {previewMode && (
+                                    <div className="flex-1">
+                                        <div className="bg-white border-2 border-gray-800 rounded p-6">
+                                            <h2 className="text-xl font-bold border-b-2 border-gray-800 pb-2 mb-4 flex items-center gap-2">
+                                                <Icons.Activity className="text-black"/> 設備配置清單 (BOM)
+                                            </h2>
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-100 text-gray-900 font-bold uppercase">
+                                                    <tr><th className="px-4 py-2 border-b">設備名稱</th><th className="px-4 py-2 border-b w-16 text-center">數量</th><th className="px-4 py-2 border-b">位置 (U)</th></tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-200">
+                                                    {equipmentList.length > 0 ? (
+                                                        equipmentList.map((eq, idx) => (
+                                                            <tr key={idx} className="hover:bg-gray-50"><td className="px-4 py-2 font-medium">{eq.name}</td><td className="px-4 py-2 text-center font-bold">{eq.count}</td><td className="px-4 py-2 text-gray-600 text-xs">{eq.positions.sort((a,b)=>parseInt(b)-parseInt(a)).join(', ')}</td></tr>
+                                                        ))
+                                                    ) : (<tr><td colSpan="3" className="px-4 py-8 text-center text-gray-400 italic">尚無配置設備</td></tr>)}
+                                                </tbody>
+                                                <tfoot className="bg-gray-50 font-bold">
+                                                    <tr><td className="px-4 py-2 border-t">總計</td><td className="px-4 py-2 border-t text-center text-blue-600">{placedItems.reduce((acc, item) => acc + (item.content ? item.content.length : 1), 0)}</td><td className="border-t"></td></tr>
+                                                </tfoot>
+                                            </table>
+                                            <div className="mt-8 pt-4 border-t border-dashed border-gray-300 text-xs text-gray-500">
+                                                <p>備註:</p><ul className="list-disc pl-4 mt-1 space-y-1"><li>本表由系統自動生成，實際安裝位置請依現場狀況微調。</li><li>層板內設備以括號標示。</li></ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </main>
                     </div>
