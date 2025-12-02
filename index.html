@@ -93,6 +93,11 @@
         .animate-bounce-in {
             animation: bounce-in 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
         }
+
+        /* 十字游標 (選取模式用) */
+        .cursor-crosshair-copy {
+            cursor: copy; 
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen">
@@ -360,7 +365,12 @@
             const handleRackItemClick = (e, item) => {
                 e.stopPropagation();
                 if (!previewMode) {
-                    setSelectedSource({ device: item, instanceId: item.instanceId });
+                    if (selectedSource && !selectedSource.instanceId) {
+                         const success = performPlace(item.position, selectedSource.device, null);
+                         if (success) setSelectedSource(null);
+                    } else {
+                        setSelectedSource({ device: item, instanceId: item.instanceId });
+                    }
                 }
             };
 
@@ -419,7 +429,7 @@
                     )}
 
                     {!previewMode && selectedSource && (
-                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl z-[60] flex items-center gap-4 animate-bounce-in">
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl z-[60] flex items-center gap-4 animate-bounce-in">
                             <span className="text-sm font-medium">
                                 {selectedSource.instanceId ? '移動中：' : '已選取：'} 
                                 <span className="font-bold">{selectedSource.device.name}</span>
@@ -434,33 +444,46 @@
                         </div>
                     )}
 
-                    {/* 頂部工具列優化：極簡高度 h-10 */}
+                    {/* 頂部工具列：整合統計資訊 (Sticky Top) */}
                     {!previewMode && (
-                        <header className="flex-none bg-gray-900/95 backdrop-blur-md border-b border-gray-700 shadow-lg z-50 no-print sticky top-0 h-10 flex items-center px-4">
-                            <div className="w-full max-w-7xl mx-auto flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-blue-600/20 p-1 rounded border border-blue-500/30">
-                                        <Icons.Server className="text-blue-400 w-4 h-4" />
+                        <header className="flex-none bg-gray-900/95 backdrop-blur-md border-b border-gray-700 shadow-lg z-50 no-print sticky top-0 h-14 flex items-center px-4 gap-4">
+                            <div className="flex-1 flex justify-between items-center overflow-x-auto">
+                                <div className="flex items-center gap-4 min-w-max">
+                                    <div className="flex items-center gap-2">
+                                        <div className="bg-blue-600/20 p-1.5 rounded border border-blue-500/30">
+                                            <Icons.Server className="text-blue-400 w-5 h-5" />
+                                        </div>
+                                        <h1 className="text-base font-bold tracking-wide text-white whitespace-nowrap">機櫃配置 Pro</h1>
                                     </div>
-                                    <h1 className="text-sm font-bold tracking-wide text-white whitespace-nowrap">機櫃配置 Pro</h1>
-                                    
-                                    {/* 隱私聲明 Tooltip */}
-                                    <div className="group relative flex items-center ml-1">
-                                        <Icons.Lock className="text-yellow-500/70 w-3.5 h-3.5 cursor-help" />
-                                        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 bg-black/90 text-xs text-gray-200 p-2 rounded border border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl z-50">
-                                            隱私聲明：所有操作僅於您的瀏覽器端執行 (Client-side)，不會上傳至任何伺服器，請安心使用。
+
+                                    {/* 即時統計區塊 (移至頂部) */}
+                                    <div className="hidden md:flex items-center gap-4 px-4 border-l border-gray-700">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-gray-400 uppercase tracking-wider">機櫃規格</span>
+                                            <span className="text-sm font-mono font-bold text-white">{totalU} U</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-gray-400 uppercase tracking-wider">已用空間</span>
+                                            <span className="text-sm font-mono font-bold text-blue-400">{placedItems.reduce((acc, item) => acc + item.uHeight, 0)} U</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-gray-400 uppercase tracking-wider">設備總數</span>
+                                            <span className="text-sm font-mono font-bold text-white">{placedItems.length}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-2 bg-gray-800 border border-gray-600 rounded px-2 h-7">
+                                <div className="flex items-center gap-3 min-w-max">
+                                    <div className="flex items-center gap-2 bg-gray-800 border border-gray-600 rounded px-2 h-8">
                                         <span className="text-xs text-gray-400 whitespace-nowrap">高(U):</span>
                                         <input type="number" min="6" max="60" className="bg-transparent text-white w-8 text-center focus:outline-none font-mono font-bold text-xs h-full" value={totalU} onChange={handleTotalUChange} />
                                     </div>
-                                    <input type="text" placeholder="客戶名稱..." className="bg-gray-800 border border-gray-600 rounded px-2 text-xs focus:outline-none focus:border-blue-500 w-24 md:w-40 h-7 transition-all text-white placeholder-gray-500" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-                                    <button onClick={() => setPreviewMode(true)} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 px-2.5 h-7 rounded text-xs font-medium text-white shadow hover:shadow-blue-500/30 transition-colors">
-                                        <Icons.Camera size={12} /> 匯出
+                                    <input type="text" placeholder="客戶名稱..." className="bg-gray-800 border border-gray-600 rounded px-2 text-xs focus:outline-none focus:border-blue-500 w-32 h-8 transition-all text-white placeholder-gray-500" value={clientName} onChange={(e) => setClientName(e.target.value)} />
+                                    <button onClick={clearRack} className="flex items-center gap-1 border border-red-500/50 text-red-400 hover:bg-red-500/10 px-3 h-8 rounded text-xs font-medium transition-colors" title="清除全部">
+                                        <Icons.Trash2 size={14} />
+                                    </button>
+                                    <button onClick={() => setPreviewMode(true)} className="flex items-center gap-1 bg-blue-600 hover:bg-blue-500 px-3 h-8 rounded text-xs font-medium text-white shadow hover:shadow-blue-500/30 transition-colors">
+                                        <Icons.Camera size={14} /> 匯出
                                     </button>
                                 </div>
                             </div>
@@ -480,30 +503,31 @@
 
                     <div className={`flex flex-col md:flex-row flex-1 w-full ${previewMode ? 'bg-white justify-center p-8' : ''}`}>
                         
-                        {/* 左側：工具箱 (Fixed) */}
+                        {/* 左側：工具箱 (Fixed, 加寬至 w-80) */}
                         {!previewMode && (
                             <aside className={`flex-none bg-gray-800/90 border-b md:border-r border-gray-700 no-print z-40 
-                                ${isMobile ? 'w-full static overflow-x-auto' : 'w-72 fixed left-0 top-10 bottom-0 overflow-y-auto custom-scrollbar flex flex-col'}
+                                ${isMobile ? 'w-full static overflow-x-auto' : 'w-80 fixed left-0 top-14 bottom-10 overflow-y-auto custom-scrollbar flex flex-col'}
                             `}>
                                 <div className="p-4 space-y-4 flex-1">
-                                    {/* 分類 Tabs */}
-                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                    {/* 分類 Tabs - grid-cols-4 單排顯示 */}
+                                    <div className="grid grid-cols-4 gap-1 mb-2">
                                         {CATEGORIES.map(cat => (
                                             <button 
                                                 key={cat.id}
                                                 onClick={() => setSelectedCategory(cat.id)}
-                                                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border border-transparent ${
+                                                className={`px-1 py-1.5 rounded text-[10px] font-medium transition-colors border text-center truncate ${
                                                     selectedCategory === cat.id 
                                                     ? 'bg-blue-600 text-white border-blue-500' 
                                                     : 'bg-gray-700 text-gray-400 hover:bg-gray-600 border-gray-600'
                                                 }`}
+                                                title={cat.name}
                                             >
                                                 {cat.name}
                                             </button>
                                         ))}
                                     </div>
                                     
-                                    {/* 設備列表 (cursor-pointer for click) */}
+                                    {/* 設備列表 */}
                                     <div className="space-y-2">
                                         {DEVICE_TYPES.filter(d => d.category === selectedCategory).map((device) => (
                                             <div
@@ -516,11 +540,12 @@
                                                 `}
                                             >
                                                 <div className={`p-1.5 rounded ${device.color} shadow-inner ring-1 ring-white/10`}>
-                                                    <device.icon size={18} className="text-white" />
+                                                    <device.icon size={20} className="text-white" />
                                                 </div>
                                                 <div>
-                                                    <div className="font-medium text-sm text-gray-200 group-hover:text-white">{device.name}</div>
-                                                    <div className="text-[10px] text-gray-400 group-hover:text-gray-300">{device.uHeight}U</div>
+                                                    {/* 放大這裡的字體 */}
+                                                    <div className="font-medium text-base text-gray-200 group-hover:text-white">{device.name}</div>
+                                                    <div className="text-xs text-gray-400 group-hover:text-gray-300">{device.uHeight}U</div>
                                                 </div>
                                             </div>
                                         ))}
@@ -530,16 +555,14 @@
                         )}
 
                         {/* 中間/主要區域 */}
-                        <main className={`flex-1 flex flex-row justify-center items-start p-4 md:p-8 ${!previewMode ? 'md:ml-72' : ''}`}>
-                            
-                            {/* 修正：移除 items-start，改為 items-stretch (預設) 以讓右側 Sticky 生效 */}
-                            <div className="flex flex-row gap-6 w-full max-w-6xl justify-center">
-                                
-                                {/* 左側：機櫃圖 */}
+                        <main className={`flex-1 flex flex-row justify-center items-start p-4 md:p-8 ${!previewMode ? 'md:ml-80 mb-8' : ''}`}>
+                            <div className="flex flex-row gap-6 w-full max-w-5xl justify-center items-start">
+                                {/* 僅剩機櫃圖 (右側統計已移至頂部) */}
                                 <div className={`${previewMode ? 'flex-none w-[320px]' : 'w-full max-w-2xl'}`}>
                                     
-                                    {/* 標頭 (Preview Only) */}
+                                    {/* 預覽標頭 */}
                                     <div className={`${previewMode ? 'block mb-6' : 'hidden'} border-b-2 border-gray-800 pb-6 relative z-10 w-full`}>
+                                        {/* ... (保持原樣) ... */}
                                         <div className="flex justify-between items-end mb-4">
                                             <div>
                                                 <div className="flex items-center gap-3 mb-1">
@@ -562,134 +585,118 @@
                                         </div>
                                     </div>
 
-                                    {/* 機櫃本體 */}
-                                    <div id="rack-container" className={`relative z-10 bg-zinc-800 border-x-[16px] border-t-[8px] border-b-[8px] border-zinc-700 shadow-2xl rounded-sm ${previewMode ? 'print-border shadow-none' : ''}`}>
-                                        <div className="h-4 bg-black flex items-center justify-center gap-8 px-8">
-                                            <div className="w-16 h-1 bg-zinc-600 rounded-full"></div><div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
+                                    {/* 編輯模式標頭 */}
+                                    <div className={`${previewMode ? 'hidden' : 'block mb-4'} border-b-2 border-gray-800 pb-4 relative z-10`}>
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <div className="bg-black text-white p-2 rounded"><Icons.Server size={24} /></div>
+                                            <h1 className="text-2xl font-bold tracking-tight text-gray-900">機櫃配置規劃圖</h1>
                                         </div>
+                                        <div className="mt-2 text-sm text-gray-600">
+                                            <p><span className="font-bold">客戶:</span> {clientName || 'N/A'}</p>
+                                            <p><span className="font-bold">規格:</span> {totalU} U</p>
+                                        </div>
+                                    </div>
 
-                                        <div className="bg-black/90 relative" style={{ height: totalU * currentUHeight }}>
-                                            {/* U 網格 (cursor-pointer for click) */}
-                                            {uSlots.map((u) => (
-                                                <div 
-                                                    key={u}
-                                                    onDragOver={(e) => handleDragOver(e, u)}
-                                                    onDrop={(e) => handleDrop(e, u)}
-                                                    onClick={() => handleSlotClick(u)}
-                                                    className={`absolute w-full border-b border-gray-800 box-border group transition-colors flex items-center justify-between px-2 cursor-pointer
-                                                        ${!previewMode && hoveredU === u ? 'bg-blue-500/20' : ''}
-                                                        ${!previewMode && selectedSource && !selectedSource.instanceId ? 'hover:bg-blue-500/10' : ''}
-                                                    `}
-                                                    style={{ height: currentUHeight, bottom: (u - 1) * currentUHeight, left: 0 }}
-                                                >
-                                                    <div className="absolute left-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span></div>
-                                                    <div className="absolute right-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className="text-[10px] font-mono font-bold text-white drop-shadow-md">{u}</span></div>
-                                                    <div className="absolute left-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
-                                                    <div className="absolute right-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
-                                                </div>
-                                            ))}
-                                            {/* 設備渲染 */}
-                                            {placedItems.map((item) => (
-                                                <div
-                                                    key={item.instanceId}
-                                                    draggable={!previewMode}
-                                                    onDragStart={(e) => !previewMode && handleItemDragStart(e, item)}
-                                                    onClick={(e) => handleRackItemClick(e, item)}
-                                                    onDragOver={(e) => handleDragOver(e, item.position)}
-                                                    onDrop={(e) => handleDrop(e, item.position)}
-                                                    className={`absolute rounded-sm shadow-md flex items-center px-2 gap-2 cursor-grab active:cursor-grabbing
-                                                        ${item.color} ${item.borderColor} border-l-4 border-r-4 transition-all
-                                                        ${item.isShelf ? 'z-20' : 'z-30'} 
-                                                        ${selectedSource && selectedSource.instanceId === item.instanceId ? 'ring-2 ring-yellow-400 opacity-80' : ''}
-                                                    `}
-                                                    style={{
-                                                        bottom: (item.position - 1) * currentUHeight + 1,
-                                                        height: item.uHeight * currentUHeight - 2,
-                                                        left: item.isHalfWidth ? (item.side === 'right' ? 'calc(50% + 2px)' : '35px') : '35px',
-                                                        width: item.isHalfWidth ? 'calc(50% - 37px)' : 'calc(100% - 70px)',
-                                                    }}
-                                                >
-                                                    {/* ... 設備內容 ... */}
-                                                    {item.isShelf ? (
-                                                        <div className="flex-1 flex items-center gap-1 h-full overflow-hidden pl-7">
-                                                            <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col justify-center mr-1 relative group/icon">
-                                                                <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
-                                                                {!previewMode && (
-                                                                    <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="absolute -left-1 -top-6 p-0.5 text-red-400 bg-gray-900/90 border border-gray-600 rounded-full z-[60] opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-red-900 hover:text-white" title="移除層板">
-                                                                        <Icons.Trash2 size={10} />
-                                                                    </button>
-                                                                )}
+                                    {/* 機櫃本體 */}
+                                    <div className={`relative transition-all duration-300 rounded-lg
+                                        ${!previewMode && selectedSource && !selectedSource.instanceId ? 'ring-2 ring-blue-500 ring-offset-4 ring-offset-gray-900 cursor-crosshair-copy' : ''}
+                                    `}>
+                                        <div id="rack-container" className={`relative z-10 bg-zinc-800 border-x-[16px] border-t-[8px] border-b-[8px] border-zinc-700 shadow-2xl rounded-sm ${previewMode ? 'print-border shadow-none' : ''}`}>
+                                            <div className="h-4 bg-black flex items-center justify-center gap-8 px-8">
+                                                <div className="w-16 h-1 bg-zinc-600 rounded-full"></div><div className="w-16 h-1 bg-zinc-600 rounded-full"></div>
+                                            </div>
+
+                                            <div className="bg-black/90 relative" style={{ height: totalU * currentUHeight }}>
+                                                {/* U 網格 (cursor-pointer for click) */}
+                                                {uSlots.map((u) => (
+                                                    <div 
+                                                        key={u}
+                                                        onDragOver={(e) => handleDragOver(e, u)}
+                                                        onDrop={(e) => handleDrop(e, u)}
+                                                        onClick={() => handleSlotClick(u)}
+                                                        className={`absolute w-full border-b border-gray-800 box-border group transition-colors flex items-center justify-between px-2 cursor-pointer
+                                                            ${!previewMode && hoveredU === u ? 'bg-blue-500/20' : ''}
+                                                            ${!previewMode && selectedSource && !selectedSource.instanceId ? 'hover:bg-blue-500/10' : ''}
+                                                        `}
+                                                        style={{ height: currentUHeight, bottom: (u - 1) * currentUHeight, left: 0 }}
+                                                    >
+                                                        <div className="absolute left-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-sm ${u % 2 !== 0 ? 'text-white' : 'text-black bg-white/90'}`}>{u}</span></div>
+                                                        <div className="absolute right-0 w-8 flex justify-center items-center h-full select-none z-50 pointer-events-none"><span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-sm ${u % 2 !== 0 ? 'text-white' : 'text-black bg-white/90'}`}>{u}</span></div>
+                                                        <div className="absolute left-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
+                                                        <div className="absolute right-8 top-0 bottom-0 w-2 flex flex-col justify-between py-1 pointer-events-none"><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div><div className="w-0.5 h-0.5 bg-zinc-600 rounded-full mx-auto"></div></div>
+                                                    </div>
+                                                ))}
+                                                {/* 設備渲染 */}
+                                                {placedItems.map((item) => (
+                                                    <div
+                                                        key={item.instanceId}
+                                                        draggable={!previewMode}
+                                                        onDragStart={(e) => !previewMode && handleItemDragStart(e, item)}
+                                                        onClick={(e) => handleRackItemClick(e, item)}
+                                                        onDragOver={(e) => handleDragOver(e, item.position)}
+                                                        onDrop={(e) => handleDrop(e, item.position)}
+                                                        className={`absolute rounded-sm shadow-md flex items-center px-2 gap-2 cursor-grab active:cursor-grabbing
+                                                            ${item.color} ${item.borderColor} border-l-4 border-r-4 transition-all
+                                                            ${item.isShelf ? 'z-30' : 'z-20'} 
+                                                            ${selectedSource && selectedSource.instanceId === item.instanceId ? 'ring-2 ring-yellow-400 opacity-80' : ''}
+                                                        `}
+                                                        style={{
+                                                            bottom: (item.position - 1) * currentUHeight + 1,
+                                                            height: item.uHeight * currentUHeight - 2,
+                                                            left: item.isHalfWidth ? (item.side === 'right' ? 'calc(50% + 2px)' : '35px') : '35px',
+                                                            width: item.isHalfWidth ? 'calc(50% - 37px)' : 'calc(100% - 70px)',
+                                                        }}
+                                                    >
+                                                        {/* ... 設備內容 (保持原樣) ... */}
+                                                        {item.isShelf ? (
+                                                            <div className="flex-1 flex items-center gap-1 h-full overflow-hidden pl-7">
+                                                                <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col justify-center mr-1 relative group/icon">
+                                                                    <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
+                                                                    {/* 增加名稱顯示 */}
+                                                                    <span className="absolute left-5 text-[10px] font-bold text-gray-300 truncate w-24 pointer-events-none select-none font-medium">{item.name}</span>
+                                                                    {!previewMode && (
+                                                                        <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="absolute -left-1 -top-6 p-0.5 text-red-400 bg-gray-900/90 border border-gray-600 rounded-full z-[60] opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-red-900 hover:text-white" title="移除層板">
+                                                                            <Icons.Trash2 size={10} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex flex-1 gap-1 h-[90%] items-end overflow-hidden">
+                                                                    {item.content && item.content.map((inner) => (
+                                                                        <div key={inner.innerId} className={`relative group/inner flex-1 h-full min-w-[10px] rounded flex items-center justify-center border ${inner.color} ${inner.borderColor}`}>
+                                                                            <span className="text-[8px] text-white truncate px-1 hidden sm:inline">{inner.name}</span>
+                                                                            {!previewMode && (
+                                                                                <button onClick={(e) => { e.stopPropagation(); removeInnerItem(item.instanceId, inner.innerId); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-red-300 hover:text-white hover:bg-red-600 rounded opacity-0 group-hover/inner:opacity-100 transition-opacity z-50 bg-black/50">
+                                                                                    <Icons.Trash2 size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
                                                             </div>
-                                                            <div className="flex flex-1 gap-1 h-[90%] items-end overflow-hidden">
-                                                                {item.content && item.content.map((inner) => (
-                                                                    <div key={inner.innerId} className={`relative group/inner flex-1 h-full min-w-[10px] rounded flex items-center justify-center border ${inner.color} ${inner.borderColor}`}>
-                                                                        <span className="text-[8px] text-white truncate px-1 hidden sm:inline">{inner.name}</span>
-                                                                        {!previewMode && (
-                                                                            <button onClick={(e) => { e.stopPropagation(); removeInnerItem(item.instanceId, inner.innerId); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 text-red-300 hover:text-white hover:bg-red-600 rounded opacity-0 group-hover/inner:opacity-100 transition-opacity z-50 bg-black/50">
-                                                                                <Icons.Trash2 size={12} />
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <div className="flex flex-col gap-0.5">
-                                                                <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
-                                                                <div className="w-1 h-1 rounded-full bg-blue-400 opacity-75"></div>
-                                                            </div>
-                                                            <item.icon className="text-white/80 flex-shrink-0" size={previewMode ? 12 : 18} />
-                                                            <div className="flex-1 min-w-0 overflow-hidden">
-                                                                <div className={`text-white font-bold truncate ${previewMode ? 'text-[9px]' : 'text-xs'}`}>{item.name}</div>
-                                                                <div className={`text-white/50 truncate ${previewMode ? 'text-[7px]' : 'text-[9px]'}`}>{item.desc}</div>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    {!previewMode && !item.isShelf && (
-                                                        <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="p-1 text-red-400 hover:bg-black/30 rounded absolute right-1 top-1 z-50">
-                                                            <Icons.Trash2 size={12} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex flex-col gap-0.5">
+                                                                    <div className="w-1 h-1 rounded-full bg-green-400 animate-pulse"></div>
+                                                                    <div className="w-1 h-1 rounded-full bg-blue-400 opacity-75"></div>
+                                                                </div>
+                                                                <item.icon className="text-white/80 flex-shrink-0" size={previewMode ? 12 : 18} />
+                                                                <div className="flex-1 min-w-0 overflow-hidden">
+                                                                    <div className={`text-white font-bold truncate ${previewMode ? 'text-[9px]' : 'text-xs'}`}>{item.name}</div>
+                                                                    <div className={`text-white/50 truncate ${previewMode ? 'text-[7px]' : 'text-[9px]'}`}>{item.desc}</div>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        {!previewMode && !item.isShelf && (
+                                                            <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="p-1 text-red-400 hover:bg-black/30 rounded absolute right-1 top-1 z-50">
+                                                                <Icons.Trash2 size={12} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* 右欄：統計資訊 (Desktop Sticky) - 改在右側 */}
-                                {!previewMode && (
-                                    <div className="hidden md:block w-64 flex-none">
-                                        <div className="bg-gray-800/90 backdrop-blur-sm rounded-xl p-4 border border-gray-700 shadow-xl sticky top-16">
-                                            <h2 className="text-sm font-semibold mb-3 text-gray-200 border-b border-gray-600 pb-2 flex items-center gap-2">
-                                                <Icons.Activity size={16} className="text-green-400"/>
-                                                即時統計
-                                            </h2>
-                                            <div className="space-y-2 text-xs mb-4">
-                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
-                                                    <span className="text-gray-400">機櫃規格</span>
-                                                    <span className="font-mono text-white font-bold">{totalU} U</span>
-                                                </div>
-                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
-                                                    <span className="text-gray-400">已用空間</span>
-                                                    <span className="font-mono text-blue-300 font-bold bg-blue-900/50 px-2 py-0.5 rounded border border-blue-500/20">
-                                                        {placedItems.reduce((acc, item) => acc + item.uHeight, 0)} U
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between items-center bg-gray-700/30 p-2 rounded">
-                                                    <span className="text-gray-400">設備總數</span>
-                                                    <span className="font-mono text-white font-bold">{placedItems.length}</span>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={clearRack}
-                                                className="w-full py-2 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 hover:border-red-500/60 text-xs flex items-center justify-center gap-2 transition-all font-medium"
-                                            >
-                                                <Icons.Trash2 size={14} /> 清除全部配置
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
 
                                 {/* 右欄：BOM 表 (Preview Only) */}
                                 {previewMode && (
@@ -722,6 +729,13 @@
                             </div>
                         </main>
                     </div>
+                    
+                    {/* Footer: 隱私聲明置底 */}
+                    {!previewMode && (
+                        <footer className="fixed bottom-0 w-full bg-gray-900 border-t border-gray-800 py-2 text-center text-xs text-gray-500 no-print z-50">
+                            🔒 隱私聲明：輸入資訊請於個人 Client 端，Server 端並不會儲存任何資訊。
+                        </footer>
+                    )}
                 </div>
             );
         }
