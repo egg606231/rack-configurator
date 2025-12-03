@@ -515,7 +515,7 @@
                                             <button 
                                                 key={cat.id}
                                                 onClick={() => setSelectedCategory(cat.id)}
-                                                className={`px-1 py-1.5 rounded text-[10px] font-medium transition-colors border text-center truncate ${
+                                                className={`px-1 py-1.5 rounded text-xs font-bold transition-colors border text-center truncate ${
                                                     selectedCategory === cat.id 
                                                     ? 'bg-blue-600 text-white border-blue-500' 
                                                     : 'bg-gray-700 text-gray-400 hover:bg-gray-600 border-gray-600'
@@ -540,7 +540,7 @@
                                                 `}
                                             >
                                                 <div className={`p-1.5 rounded ${device.color} shadow-inner ring-1 ring-white/10`}>
-                                                    <device.icon size={20} className="text-white" />
+                                                    <device.icon size={18} className="text-white" />
                                                 </div>
                                                 <div>
                                                     {/* 放大這裡的字體 */}
@@ -653,7 +653,7 @@
                                                                 <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col justify-center mr-1 relative group/icon">
                                                                     <Icons.Layers size={previewMode ? 10 : 14} className="text-gray-400" />
                                                                     {/* 增加名稱顯示 */}
-                                                                    <span className="absolute left-5 text-[10px] font-bold text-gray-300 truncate w-24 pointer-events-none select-none font-medium">{item.name}</span>
+                                                                    <span className="absolute left-5 text-[10px] font-bold text-gray-300 truncate w-32 pointer-events-none select-none font-medium">{item.name}</span>
                                                                     {!previewMode && (
                                                                         <button onClick={(e) => { e.stopPropagation(); removeItem(item.instanceId); }} className="absolute -left-1 -top-6 p-0.5 text-red-400 bg-gray-900/90 border border-gray-600 rounded-full z-[60] opacity-0 group-hover/icon:opacity-100 transition-opacity hover:bg-red-900 hover:text-white" title="移除層板">
                                                                             <Icons.Trash2 size={10} />
